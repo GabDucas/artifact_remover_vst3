@@ -6,6 +6,7 @@
 
 build/
 external/
+.vscode
 
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
