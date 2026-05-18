@@ -5,21 +5,29 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <cstdlib>
 
-#include "artifact_remover/dsp/Remover.h"
+#include "artifact_remover/Remover.h"
 
-using namespace artifact_remover::dsp;
-using namespace artifact_remover::core;
+using namespace artifact_remover;
 
 int main()
 {
+    // _putenv_s("MKL_VERBOSE", "1");
+    // // Set MKL to sequential mode before using MKL functions
+
     // =====================================================
     // 1. Load signal from CSV
     // =====================================================
 
     const double fs = 1925.9;
 
-    std::ifstream file("D:\\Documents\\Programmation\\tscs_artifact_remover\\signal.txt");
+    std::ifstream file("C:\\Users\\neuromobility_lab\\Documents\\amedeo\\dev\\artifact_remover_vst3\\demo\\signal.txt");
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open signal file\n";
+        return 1;
+    }
 
     std::vector<double> temp;
     std::string line;
@@ -28,6 +36,13 @@ int main()
         if (!line.empty()) {
             temp.push_back(std::stod(line));
         }
+    }
+
+    file.close();
+
+    if (temp.empty()) {
+        std::cerr << "Error: Signal file is empty\n";
+        return 1;
     }
 
     Eigen::VectorXd signal(temp.size());
@@ -52,6 +67,11 @@ int main()
     int tau = 1;
     // get only the 10 000 first samples for faster testing
     std::cout << signal.size() << " samples\n";
+    std::cout.flush();
+    
+    std::cout << "Starting artifact removal...\n";
+    std::cout.flush();
+    auto start = std::chrono::high_resolution_clock::now();
     auto result =
         remover.remove_artifact(
             signal.head(500),
@@ -60,10 +80,16 @@ int main()
             fs,
             10.0,   // lower frequency bound
             450.0,  // upper frequency bound
-            0.3     // rejection factor
+            0.3,    // rejection factor
+            0.0005    // SVD truncation threshold (relative to max singular value)
         );
 
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Total execution time: " << duration.count() << " ms\n";
+
     std::cout << "Artifact removal completed\n";
+    std::cout.flush();
 
     // =====================================================
     // 4. Display rejected components
@@ -94,25 +120,6 @@ int main()
             << "\n";
     }
 
-    // =====================================================
-    // 6. Reconstruction quality
-    // =====================================================
-
-    double original_energy =
-        signal.squaredNorm();
-
-    double cleaned_energy =
-        result.cleaned_signal.squaredNorm();
-
-    std::cout
-        << "\nOriginal energy: "
-        << original_energy
-        << "\n";
-
-    std::cout
-        << "Cleaned energy: "
-        << cleaned_energy
-        << "\n";
 
     // =====================================================
     // 7. Export CSV

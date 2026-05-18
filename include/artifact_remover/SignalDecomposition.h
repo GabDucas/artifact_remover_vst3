@@ -1,16 +1,12 @@
 
+// #define EIGEN_USE_MKL_ALL
+
 #include <Eigen/Dense>
 #include <tuple>
+#include "artifact_remover/Types.h"
 
-namespace artifact_remover::core {
-
-using Matrix = Eigen::Matrix<
-        double,
-        Eigen::Dynamic,
-        Eigen::Dynamic,
-        Eigen::RowMajor>;
-
-using Vector = Eigen::VectorXd;
+namespace artifact_remover 
+{
 
 struct SVDResult
 {
@@ -32,7 +28,11 @@ Vector reconstruct_from_hankel(const Matrix& hankel, int tau = 1);
 
 /**
  * Compute SVD of a Hankel-embedded signal.
+ * @param emg_signal Input signal
+ * @param n_rows Number of rows in Hankel matrix
+ * @param hankel_delay Delay between rows
+ * @param threshold Optional: if > 0, truncate singular values below (threshold * max_singular_value)
  */
-SVDResult compute_svd(const Vector& emg_signal, int n_rows = 800, int hankel_delay = 1);
+SVDResult compute_svd(const Vector& emg_signal, int n_rows = 800, int hankel_delay = 1, double threshold = 0.0);
 
-} // namespace artifact_remover::core
+} // namespace artifact_remover

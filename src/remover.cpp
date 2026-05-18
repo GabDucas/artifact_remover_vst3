@@ -2,17 +2,16 @@
 // Remover.cpp
 // =========================================================
 
-#include "artifact_remover/dsp/Remover.h"
+#include "artifact_remover/Remover.h"
 
 #include <algorithm>
 #include <numeric>
 #include <fstream>
 #include <cmath>
-#include <chrono>
 #include <iostream>
 #include <set>
 
-namespace artifact_remover::dsp
+namespace artifact_remover
 {
 
     // =========================================================
@@ -72,7 +71,6 @@ namespace artifact_remover::dsp
         double factor)
     {
         Matrix fft_mag = fft_.rfft_mag(Vh);
-
         // Frequency at argmax of each row's FFT
         std::vector<double> freqs =
             fft_.get_fft_frequencies(
@@ -173,7 +171,8 @@ namespace artifact_remover::dsp
         double data_rate,
         double lower_freq,
         double upper_freq,
-        double factor)
+        double factor,
+        double svd_threshold)
     {
         RemovalResult result;
 
@@ -181,22 +180,10 @@ namespace artifact_remover::dsp
         // 1. Compute Hankel + SVD
         // -----------------------------------------------------
         // TODO: send template Eigen matrix to compute_svd to avoid copying data
-        auto start = std::chrono::high_resolution_clock::now();
 
         auto svd_result =
-            artifact_remover::core::compute_svd(signal, L, tau);
+            artifact_remover::compute_svd(signal, L, tau, svd_threshold);
 
-        auto end =
-            std::chrono::high_resolution_clock::now();
-
-        auto duration =
-            std::chrono::duration_cast<
-                std::chrono::milliseconds>(end - start);
-
-        std::cout
-            << "Execution svd time: "
-            << duration.count()
-            << " ms\n";
         result.hankel = svd_result.hankel;
 
         result.U = svd_result.U;
@@ -239,7 +226,7 @@ namespace artifact_remover::dsp
         // -----------------------------------------------------
 
         result.cleaned_signal =
-            artifact_remover::core::reconstruct_from_hankel(
+            artifact_remover::reconstruct_from_hankel(
                 H_clean,
                 tau);
         

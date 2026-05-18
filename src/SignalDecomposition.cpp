@@ -1,9 +1,13 @@
-#include "artifact_remover/core/SignalDecomposition.h"
+
+// #define EIGEN_USE_MKL_ALL
+
+#include "artifact_remover/SignalDecomposition.h"
 #include <Eigen/SVD>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 
-namespace artifact_remover::core
+namespace artifact_remover
 {
 
     /**
@@ -78,21 +82,52 @@ namespace artifact_remover::core
         \param hankel_delay Delay between rows (tau)
 
      */
-    SVDResult compute_svd(const Vector &emg_signal, int n_rows, int hankel_delay)
+    SVDResult compute_svd(const Vector &emg_signal, int n_rows, int hankel_delay, double threshold)
     {
         SVDResult out;
-
         out.hankel = hankel_delay_fct(emg_signal, n_rows, hankel_delay);
+        
+        // Convert to column-major for MKL compatibility
+        ColMajorMatrix hankel_colmajor = out.hankel;
+        Eigen::BDCSVD<ColMajorMatrix> svd(hankel_colmajor, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
-        // Eigen::JacobiSVD<Matrix> svd(out.hankel, Eigen::ComputeThinU | Eigen::ComputeThinV);
-        Eigen::BDCSVD<Matrix> svd(out.hankel, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        Matrix U_full = svd.matrixU();
+        Vector S_full = svd.singularValues();
+        Matrix Vh_full = svd.matrixV().transpose();
 
-
-        out.U = svd.matrixU();
-        out.S = svd.singularValues();
-        out.Vh = svd.matrixV().transpose();
+        // Apply truncation if threshold provided
+        if (threshold > 0.0) {
+            double max_s = S_full(0);
+            double threshold_value = threshold;
+            
+            std::vector<int> kept_indices;
+            for (int i = 0; i < S_full.size(); ++i) {
+                if (S_full(i) > threshold_value) {
+                    kept_indices.push_back(i);
+                }
+            }
+            
+            int rank = kept_indices.size();
+            
+            // Extract only kept components
+            out.U = Matrix(U_full.rows(), rank);
+            out.S = Vector(rank);
+            out.Vh = Matrix(rank, Vh_full.cols());
+            
+            for (int i = 0; i < rank; ++i) {
+                int idx = kept_indices[i];
+                out.U.col(i) = U_full.col(idx);
+                out.S(i) = S_full(idx);
+                out.Vh.row(i) = Vh_full.row(idx);
+            }
+        } else {
+            // No truncation
+            out.U = U_full;
+            out.S = S_full;
+            out.Vh = Vh_full;
+        }
 
         return out;
     }
 
-} // namespace artifact_remover::core
+} // namespace artifact_remover

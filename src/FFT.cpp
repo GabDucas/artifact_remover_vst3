@@ -2,11 +2,12 @@
 // #define EIGEN_POCKETFFT_DEFAULT
 // #define EIGEN_FFTW_DEFAULT
 
-#include "artifact_remover/core/FFT.h"
+
+#include "artifact_remover/FFT.h"
 #include <vector>
 #include <iostream>
 
-namespace artifact_remover::core
+namespace artifact_remover
 {
 
 ComplexMatrix FFT::rfft(const Matrix& x)
@@ -81,4 +82,4 @@ std::vector<double> FFT::get_fft_frequencies(int N, double Fs)
     return frequencies;
 }
 
-} // namespace artifact_remover::core
+} // namespace artifact_remover

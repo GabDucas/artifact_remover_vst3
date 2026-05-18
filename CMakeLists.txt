@@ -10,6 +10,11 @@ project(
     LANGUAGES CXX
 )
 
+# Force 64-bit build for MKL compatibility
+if(NOT CMAKE_GENERATOR_PLATFORM)
+    set(CMAKE_GENERATOR_PLATFORM x64 CACHE STRING "Platform" FORCE)
+endif()
+
 # =========================================================
 # C++ standard
 # =========================================================
@@ -24,7 +29,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
-
 # =========================================================
 # Compiler warnings
 # =========================================================
@@ -41,8 +45,14 @@ endif()
 # set(Eigen3_DIR "C:\\Program Files (x86)\\Eigen3")
 
 # find_package(Eigen3 REQUIRED)
-# find_package(MKL CONFIG REQUIRED)
+find_package(MKL CONFIG QUIET)
 # find_package(FFTW REQUIRED)
+
+option(USE_MKL "Use Intel MKL for linear algebra" ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 
 # =========================================================
 # Submodules
@@ -58,24 +68,30 @@ add_library(
     artifact_remover
 )
 
+# add_executable(
+#     demo_app
+#     demo/RemoverExample.cpp
+# )
+
 add_executable(
-    demo_app
-    apps/demo/RemoverExample.cpp
+    audio_test
+    demo/JuceAudioProcessingTest.cpp
 )
 
 target_sources(artifact_remover
     PRIVATE
-        src/core/SignalDecomposition.cpp
-        src/core/FFT.cpp
-        src/dsp/remover.cpp
+        src/SignalDecomposition.cpp
+        src/FFT.cpp
+        src/remover.cpp
     
     PUBLIC
         FILE_SET HEADERS
         BASE_DIRS include
         FILES 
-            include/artifact_remover/core/SignalDecomposition.h
-            include/artifact_remover/core/FFT.h
-            include/artifact_remover/dsp/remover.h
+            include/artifact_remover/Types.h
+            include/artifact_remover/SignalDecomposition.h
+            include/artifact_remover/FFT.h
+            include/artifact_remover/remover.h
 )
 
 set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
@@ -105,19 +121,7 @@ target_include_directories(artifact_remover
     ${pocketfft_SOURCE_DIR}
     ${Eigen_SOURCE_DIR}
 )
-
-if(MSVC)
-    find_package(MKL QUIET)
-    if (NOT MKL_FOUND)
-        message(WARNING "MKL not found. Please install MKL and set MKL_DIR to the appropriate path. Using default library instead")
-    else()
-        target_link_libraries(artifact_remover
-        PRIVATE
-        MKL::MKL
-    )
-    endif()
-
-endif()
+add_subdirectory(juce_plugin)
     
 
 # =========================================================
@@ -128,18 +132,44 @@ target_link_libraries(artifact_remover
     Eigen3::Eigen
 )
 
-target_compile_definitions(artifact_remover
-    PRIVATE
-        EIGEN_POCKETFFT_DEFAULT
-)
-if (MSVC && MKL_FOUND) 
+set(MKL_ROOT "C:/Program Files (x86)/Intel/oneAPI/mkl/2026.0")
+set(MKL_INCLUDE_DIR "${MKL_ROOT}/include")
+set(MKL_LIB_DIR "${MKL_ROOT}/lib")
+
+if(EXISTS "${MKL_INCLUDE_DIR}/mkl.h")
+    message(STATUS "Using MKL for linear algebra (Release build)")
+    message(STATUS "MKL include dir: ${MKL_ROOT}")
+
+    target_include_directories(artifact_remover PRIVATE "${MKL_INCLUDE_DIR}")
+    
+    # Link MKL libraries
+    target_link_directories(artifact_remover PRIVATE "${MKL_LIB_DIR}")
+
+    target_link_libraries(artifact_remover
+        PUBLIC
+        ${MKL_ROOT}/lib/mkl_intel_lp64.lib
+        ${MKL_ROOT}/lib/mkl_core.lib
+        ${MKL_ROOT}/lib/mkl_sequential.lib
+    )
     target_compile_definitions(artifact_remover
         PRIVATE
             EIGEN_USE_MKL_ALL
+            EIGEN_MKL_DEFAULT
+    )
+else()
+    message(STATUS "Using Eigen built-in algorithms")
+    target_compile_definitions(artifact_remover
+        PRIVATE
+            EIGEN_POCKETFFT_DEFAULT
     )
 endif()
+# target_link_libraries(demo_app
+#     PRIVATE
+#     artifact_remover
+#     Eigen3::Eigen
+# )
 
-target_link_libraries(demo_app
+target_link_libraries(audio_test
     PRIVATE
     artifact_remover
     Eigen3::Eigen

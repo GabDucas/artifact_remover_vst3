@@ -1,25 +1,14 @@
 // FFT.h
 // #define EIGEN_POCKETFFT_DEFAULT
-
+// #define EIGEN_USE_MKL_ALL
 #include <Eigen/Dense>
 #include <unsupported/Eigen/FFT>
 #include <complex>
+#include "artifact_remover/Types.h"
 
-namespace artifact_remover::core
+namespace artifact_remover
 {
 
-// using Matrix = Eigen::MatrixXd;
-/*
-Row-major storage order is required for the FFT to work correctly with the current implementation of Eigen's FFT module,
-which expects contiguous data in memory. Using row-major storage ensures that the data is stored in a way that allows
- for efficient access patterns during the FFT computation.
-
- */  
-using Matrix = Eigen::Matrix<
-        double,
-        Eigen::Dynamic,
-        Eigen::Dynamic,
-        Eigen::RowMajor>;
 using ComplexMatrix = Eigen::Matrix<
         std::complex<double>,
         Eigen::Dynamic,
@@ -59,4 +48,4 @@ private:
     Eigen::FFT<double> fft_;
 };
 
-} // namespace artifact_remover::core
+} // namespace artifact_remover

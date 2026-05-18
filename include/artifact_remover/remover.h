@@ -6,19 +6,12 @@
 #include <complex>
 #include <vector>
 
-#include "artifact_remover/core/SignalDecomposition.h"
-#include "artifact_remover/core/FFT.h"
+#include "artifact_remover/Types.h"
+#include "artifact_remover/SignalDecomposition.h"
+#include "artifact_remover/FFT.h"
 
-namespace artifact_remover::dsp
+namespace artifact_remover
 {
-
-using Matrix = Eigen::Matrix<
-    double,
-    Eigen::Dynamic,
-    Eigen::Dynamic,
-    Eigen::RowMajor>;
-
-using Vector = Eigen::VectorXd;
 
 using ComplexMatrix = Eigen::Matrix<
     std::complex<double>,
@@ -52,12 +45,13 @@ public:
         double data_rate,
         double lower_freq = 10.0,
         double upper_freq = 450.0,
-        double factor = 0.5
+        double factor = 0.5,
+        double svd_threshold = 0.0
     );
 
 private:
 
-    artifact_remover::core::FFT fft_;
+    artifact_remover::FFT fft_;
 
     // -----------------------------------------------------
     // Metrics

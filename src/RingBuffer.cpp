@@ -1,9 +1,9 @@
 // RingBuffer.cpp
 
 
-#include "utils/RingBuffer.h"
+#include "artifact_remover/RingBuffer.h"
 
-namespace artifact_remover::utils
+namespace artifact_remover
 {
     RingBuffer::RingBuffer(
         size_t nChannels,
@@ -127,4 +127,4 @@ namespace artifact_remover::utils
             }
         }
     }
-} // namespace artifact_remover::utils
+} // namespace artifact_remover

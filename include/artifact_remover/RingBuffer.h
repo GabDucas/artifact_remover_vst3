@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace artifact_remover::streaming
+namespace artifact_remover
 {
     class RingBuffer
     {
