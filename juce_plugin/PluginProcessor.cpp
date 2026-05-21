@@ -136,7 +136,16 @@ void ArtifactRemoverAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         auto* inputChannelData = buffer.getReadPointer(0);
         auto* outputChannelData = buffer.getWritePointer(0);
         auto numSamples = buffer.getNumSamples();
-        
+        bool isSilent = buffer.getMagnitude(0, numSamples) < 1e-10f;
+        if (isSilent)
+        {
+            // If input is silent, pass through and skip processing
+            for (int i = 0; i < numSamples; ++i)
+            {
+                outputChannelData[i] = inputChannelData[i];
+            }
+            return;
+        }
         // Get parameters safely with defaults
         int windowSize = getParameterIntSafe("window_size", 500);
         float lowerFreq = getParameterSafe("lower_freq", 10.0f);
@@ -168,21 +177,17 @@ void ArtifactRemoverAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
                 << ", Queue: " << outputQueue.size();
             DebugLogger::getInstance().log(oss.str());
         }
-        
+        int bufferSize = static_cast<int>(downsampledBuffer.size());
         // Process when we have enough data
-        if (static_cast<int>(downsampledBuffer.size()) >= windowSize)
+        if (bufferSize >= windowSize)
         {
             DebugLogger::getInstance().log(">>> PROCESSING TRIGGERED");
-            
-            // Extract last windowSize samples
-            int bufferSize = static_cast<int>(downsampledBuffer.size());
-            int startIdx = std::max(0, bufferSize - windowSize);
-            
+                        
             Vector signal(windowSize);
-            
+            double signalMin = 1e9, signalMax = -1e9, signalMean = 0;
             for (int i = 0; i < windowSize; ++i)
             {
-                int bufIdx = startIdx + i;
+                int bufIdx = i;
                 if (bufIdx < bufferSize)
                 {
                     signal(i) = downsampledBuffer[bufIdx];
@@ -191,8 +196,12 @@ void ArtifactRemoverAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
                 {
                     signal(i) = 0.0;
                 }
+                signalMin = std::min(signalMin, signal(i));
+                signalMax = std::max(signalMax, signal(i));
             }
-            
+            std::ostringstream oss;
+            oss << "Signal stats - Min: " << signalMin << ", Max: " << signalMax;
+            DebugLogger::getInstance().log(oss.str());
             // Run artifact removal
             RemovalResult result = remover.remove_artifact(
                 signal,
@@ -217,40 +226,37 @@ void ArtifactRemoverAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             int extractSize = std::min(numSamples, static_cast<int>(upsampled.size()));
             int extractStart = upsampled.size() - extractSize;
             
-            std::ostringstream ossDebug;
-            ossDebug << "Upsampled size: " << upsampled.size() << ", extractStart: " << extractStart 
-                     << ", extractSize: " << extractSize;
-            DebugLogger::getInstance().log(ossDebug.str());
-            
             for (int i = extractStart; i < static_cast<int>(upsampled.size()); ++i)
             {
-                outputQueue.push_back(static_cast<float>(upsampled[i]));
+                outputChannelData[i - extractStart] = upsampled[i];
+                std::ostringstream oss;
+                oss << "Output sample " << (i - extractStart) << ": " << upsampled[i];
+                DebugLogger::getInstance().log(oss.str());
             }
-            
-            DebugLogger::getInstance().log("Output queue size after push: " + std::to_string(outputQueue.size()));
         }
         else
         {
             // Buffer not full yet - pass through input directly
             for (int i = 0; i < numSamples; ++i)
             {
-                outputQueue.push_back(inputChannelData[i]);
+                outputChannelData[i] = inputChannelData[i];
+                // outputQueue.push_back(inputChannelData[i]);
             }
         }
         
-        // Fill output buffer from queue
-        for (int i = 0; i < numSamples; ++i)
-        {
-            if (!outputQueue.empty())
-            {
-                outputChannelData[i] = outputQueue.front();
-                outputQueue.pop_front();
-            }
-            else
-            {
-                outputChannelData[i] = inputChannelData[i];
-            }
-        }
+        // // Fill output buffer from queue
+        // for (int i = 0; i < numSamples; ++i)
+        // {
+        //     if (!outputQueue.empty())
+        //     {
+        //         outputChannelData[i] = outputQueue.front();
+        //         outputQueue.pop_front();
+        //     }
+        //     else
+        //     {
+        //         outputChannelData[i] = inputChannelData[i];
+        //     }
+        // }
     }
     catch (const std::exception& e) {
         DebugLogger::getInstance().log(std::string("processBlock EXCEPTION: ") + e.what());
