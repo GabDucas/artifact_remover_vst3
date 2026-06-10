@@ -65,7 +65,9 @@ int main(int argc, char* argv[])
     std::vector<float> audioData;
     double sampleRate = 48000.0;
     
-    std::ifstream inFile("C:\\Users\\neuromobility_lab\\Documents\\amedeo\\dev\\artifact_remover_vst3\\test_48khz.txt");
+    // Accept optional path as argument, otherwise look in current directory
+    std::string inputPath = (argc > 1) ? argv[1] : "test_48khz.txt";
+    std::ifstream inFile(inputPath);
     if (!inFile.is_open()) {
         std::cerr << "Error: Could not open test_48khz.txt\n";
         std::cerr << "Make sure to run from demo directory or provide full path\n";
@@ -86,7 +88,7 @@ int main(int argc, char* argv[])
     inFile.close();
     
     std::cout << "=== Audio Processing Test (mimics VST3 plugin) ===\n\n";
-    std::cout << "Input file: test_48khz.txt\n";
+    std::cout << "Input file: " << inputPath << "\n";
     std::cout << "Audio data loaded: " << audioData.size() << " samples @ " << sampleRate << " Hz\n";
     std::cout << "Duration: " << (audioData.size() / sampleRate) << " seconds\n";
     std::cout << "Processing window: " << PROCESSING_WINDOW_SIZE << " samples @ 6kHz\n";
@@ -228,7 +230,14 @@ int main(int argc, char* argv[])
     std::cout << "Output samples: " << processedOutput.size() << " / " << audioData.size() << "\n\n";
     
     // Save output to file
-    std::ofstream outFile("C:\\Users\\neuromobility_lab\\Documents\\amedeo\\dev\\artifact_remover_vst3\\test_48khz_processed.txt");
+    // Derive output path from input path
+    std::string outputPath = inputPath;
+    size_t dotPos = outputPath.rfind('.');
+    if (dotPos != std::string::npos)
+        outputPath = outputPath.substr(0, dotPos) + "_processed" + outputPath.substr(dotPos);
+    else
+        outputPath += "_processed.txt";
+    std::ofstream outFile(outputPath);
     if (outFile.is_open())
     {
         for (float sample : processedOutput)
@@ -236,7 +245,7 @@ int main(int argc, char* argv[])
             outFile << sample << "\n";
         }
         outFile.close();
-        std::cout << "Output saved to: processed_output.txt\n";
+        std::cout << "Output saved to: " << outputPath << "\n";
     }
     else
     {

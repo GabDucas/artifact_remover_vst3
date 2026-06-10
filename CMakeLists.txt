@@ -10,11 +10,6 @@ project(
     LANGUAGES CXX
 )
 
-# Force 64-bit build for MKL compatibility
-if(NOT CMAKE_GENERATOR_PLATFORM)
-    set(CMAKE_GENERATOR_PLATFORM x64 CACHE STRING "Platform" FORCE)
-endif()
-
 # =========================================================
 # C++ standard
 # =========================================================
